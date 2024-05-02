@@ -3,6 +3,7 @@
 #include "dma.h"
 #include "i2c.h"
 #include "quadspi.h"
+#include "tim.h"
 #include "usart.h"
 #include "gpio.h"
 #include "fmc.h"
@@ -19,6 +20,9 @@ extern DMA_HandleTypeDef hdma_usart1_rx;
 extern DMA_HandleTypeDef hdma_usart1_tx;
 extern QSPI_HandleTypeDef hqspi;
 extern ADC_HandleTypeDef hadc3;
+extern TIM_HandleTypeDef htim2;
+extern DMA_HandleTypeDef hdma_tim2_ch1;
+
 
 struct SDRAMResults {
 	float Temperature;
@@ -29,6 +33,16 @@ struct SDRAMResults {
 };
 struct SDRAMResults* sdResults=(uint32_t *)0xC0000000;
 
+#define CCRValue_BufferSize     37	//with 10 degree resulution
+
+uint32_t DiscontinuousSineCCRValue_Buffer[CCRValue_BufferSize] =
+{
+  2499, 2932, 3353, 3748, 4105, 4413, 4663, 4847, 4960,
+  4998, 4960, 4847, 4663, 4413, 4105, 3748, 3353, 2932,
+  2499, 2065, 1644, 1249, 892, 584, 334, 150, 337, 0, 37,
+  150, 334, 584, 892, 1249, 1644, 2065, 2499
+};
+
 uint8_t RxData[256];
 
 int HTC = 0, FTC = 0;
@@ -36,6 +50,9 @@ uint32_t indx=0;
 
 int isCommandRxed = 0;
 uint32_t size=0;
+
+GPIO_PinState pinState;
+
 
 #if defined(__CC_ARM)
 extern uint32_t Load$$QSPI$$Base;
@@ -66,6 +83,9 @@ int main(void)
 	  SDRAM_Initialization_Sequence(&hsdram1, &command);
 	  MX_ADC3_Init();
 	  MX_I2C1_Init();
+	  MX_TIM2_Init();
+
+	  HAL_TIM_PWM_Start_DMA(&htim2, TIM_CHANNEL_1, DiscontinuousSineCCRValue_Buffer, CCRValue_BufferSize);
 
 	  BME280_Config(OSRS_2, OSRS_16, OSRS_1, MODE_NORMAL, T_SB_0p5, IIR_16);
 
@@ -76,6 +96,7 @@ int main(void)
 
 	  while(1)
 	  {
+		  pinState = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_15);
 		  BME280_Measure(&(sdResults->Temperature), &(sdResults->Humidity), &(sdResults->Pressure));
 		  if (((size-indx)>0) && ((size-indx)<128))
 		    {
@@ -109,7 +130,7 @@ int main(void)
 		    }
 	  }
 }
-
+	  
 void HAL_UART_RxHalfCpltCallback(UART_HandleTypeDef *huart)
 {
 	if (isCommandRxed == 0)
@@ -143,7 +164,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef* hadc) {
 
 }
-
 
 void SystemClock_Config(void)
 {
@@ -192,12 +212,6 @@ void SystemClock_Config(void)
     Error_Handler();
   }
 }
-
-/* USER CODE BEGIN 4 */
-
-/* USER CODE END 4 */
-
- /* MPU Configuration */
 
 void MPU_Config(void)
 {
