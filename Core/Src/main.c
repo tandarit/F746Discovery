@@ -35,12 +35,12 @@ struct SDRAMResults* sdResults=(uint32_t *)0xC0000000;
 
 #define CCRValue_BufferSize     37	//with 10 degree resulution
 
-uint32_t DiscontinuousSineCCRValue_Buffer[CCRValue_BufferSize] =
+uint32_t SineCCRValue_Buffer[CCRValue_BufferSize] =
 {
-  2499, 2932, 3353, 3748, 4105, 4413, 4663, 4847, 4960,
-  4998, 4960, 4847, 4663, 4413, 4105, 3748, 3353, 2932,
-  2499, 2065, 1644, 1249, 892, 584, 334, 150, 337, 0, 37,
-  150, 334, 584, 892, 1249, 1644, 2065, 2499
+  4999, 5867, 6708, 7498, 8212, 8828, 9328, 9696, 9922,
+  9998, 9922, 9696, 9328, 8828, 8212, 7498, 6708, 5867,
+  4999, 4130, 3289, 2499, 1785, 1169, 669, 301, 75, 0, 75,
+  301, 669, 1169, 1785, 2499, 3289, 4130, 4999
 };
 
 uint8_t RxData[256];
@@ -50,9 +50,6 @@ uint32_t indx=0;
 
 int isCommandRxed = 0;
 uint32_t size=0;
-
-GPIO_PinState pinState;
-
 
 #if defined(__CC_ARM)
 extern uint32_t Load$$QSPI$$Base;
@@ -85,7 +82,7 @@ int main(void)
 	  MX_I2C1_Init();
 	  MX_TIM2_Init();
 
-	  HAL_TIM_PWM_Start_DMA(&htim2, TIM_CHANNEL_1, DiscontinuousSineCCRValue_Buffer, CCRValue_BufferSize);
+	  HAL_TIM_PWM_Start_DMA(&htim2, TIM_CHANNEL_1, SineCCRValue_Buffer, CCRValue_BufferSize);
 
 	  BME280_Config(OSRS_2, OSRS_16, OSRS_1, MODE_NORMAL, T_SB_0p5, IIR_16);
 
@@ -96,7 +93,6 @@ int main(void)
 
 	  while(1)
 	  {
-		  pinState = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_15);
 		  BME280_Measure(&(sdResults->Temperature), &(sdResults->Humidity), &(sdResults->Pressure));
 		  if (((size-indx)>0) && ((size-indx)<128))
 		    {
